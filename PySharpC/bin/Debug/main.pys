@@ -1,0 +1,29 @@
+def main():
+	str tekst
+	int liczba
+	liczba=9
+	tekst="Hello World!\n"
+	wypisz(tekst)
+	wypiszDwieLiczby(liczba)
+	inlineAsmExample()
+
+def wypisz(str parametr):
+	^printf(parametr)
+
+def wypiszDwieLiczby(int liczba1):
+	str pattern
+	int liczba2
+	liczba2=7
+	pattern="%d %d\n"
+	^printf(pattern,liczba2,liczba1)
+
+def inlineAsmExample():
+	int liczba
+	str pattern
+	pattern="%d\n"
+	liczba=4
+	asm:
+		movl $5, ^liczba
+	^printf(pattern,liczba)
+
+
