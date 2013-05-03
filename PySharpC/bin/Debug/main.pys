@@ -1,7 +1,13 @@
 def main():
 	str tekst
 	int liczba
-	liczba=9
+	liczba=1024
+	str buffor
+	str formater
+	formater="%s"
+	buffor=^malloc(liczba)
+	^scanf(formater,buffor)
+	wypisz(buffor)
 	tekst="Hello World!\n"
 	wypisz(tekst)
 	wypiszDwieLiczby(liczba)

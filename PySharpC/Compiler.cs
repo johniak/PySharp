@@ -127,7 +127,7 @@ namespace PySharpC
                     var.StackPosition = locals.Count;
                     localLocals.Add(var);
                     locals.Add(var.Name, var);
-                    assemblyText.Add("sub $4,%esp");
+                    assemblyText.Add("sub $4,%esp #"+var.Name);
                     currentLine++;
                     continue;
                 }
@@ -179,6 +179,7 @@ namespace PySharpC
                 {
                     Variable var = locals[match.Groups["name"].Value];
                     line = Regex.Replace(line, @"\^" + variableNameRegex, buildStackVariable(locals, var.Name, argsCount));
+                    line += " #" + var.Name;
                 }
                 assemblyText.Add(line);
             }
@@ -225,16 +226,22 @@ namespace PySharpC
         void variableAssigment(string line, Dictionary<string, Variable> locals, int argsCount)
         {
             Variable var = locals[Regex.Match(line, variableNameRegex).Groups["name"].Value];
+            if (Regex.IsMatch(line.Trim(), @"(\^)?" + variableNameRegex + @"[ ]*\(.*\)$"))
+            {
+                functionCalling(line.Split('=')[1].Trim(), locals, argsCount);
+                assemblyText.Add("mov %eax," + buildStackVariable(locals, var.Name, argsCount)+" #" + var.Name);
+                return;
+            }
             if (var.Type == VarType.integer)
             {
                 integerOperationExtractor(line.Split('=')[1].Trim(), locals, argsCount);
-                assemblyText.Add("mov %ebx," + buildStackVariable(locals, var.Name, argsCount));
+                assemblyText.Add("mov %ebx," + buildStackVariable(locals, var.Name, argsCount) + " #" + var.Name);
 
             }
             if (var.Type == VarType.str)
             {
                 stringAssigment(line.Split('=')[1].Trim(), locals, argsCount);
-                assemblyText.Add("mov %ebx," + buildStackVariable(locals, var.Name, argsCount));
+                assemblyText.Add("mov %ebx," + buildStackVariable(locals, var.Name, argsCount) + " #" + var.Name);
             }
         }
         void integerOperationExtractor(string operations, Dictionary<string, Variable> locals, int argsCount)
@@ -272,7 +279,7 @@ namespace PySharpC
             var matchArgs = match.Groups["args"].Value;
             if (matchArgs == "")
             {
-                assemblyText.Add("call " + functionName);
+                assemblyText.Add("call " + functionName+" #"+line.Trim());
                 return;
             }
             string[] arguments = matchArgs.Split(',');
@@ -283,11 +290,11 @@ namespace PySharpC
                 var arg = arguments[i];
                 if (arg == "")
                     continue;
-                assemblyText.Add("mov " + buildStackVariable(locals, arg, argsCount) + ",%ebx");
+                assemblyText.Add("mov " + buildStackVariable(locals, arg, argsCount) + ",%ebx" + " #" + arg);
                 assemblyText.Add("mov %ebx,"+i*4+"(%edx)");
             }
             assemblyText.Add("sub $" + arguments.Length *4+ ",%esp");
-            assemblyText.Add("call " + functionName);
+            assemblyText.Add("call " + functionName + " #" + line.Trim());
             assemblyText.Add("add $" + arguments.Length * 4 + ",%esp");
         }
         string buildStackVariable(Dictionary<string, Variable> locals, string name, int argsCount)
