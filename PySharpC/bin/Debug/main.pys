@@ -5,6 +5,7 @@ def main():
 	str buffor
 	str formater
 	formater="%s"
+	^printf("tekst %d\n",14)
 	buffor=^malloc(liczba)
 	^scanf(formater,buffor)
 	wypisz(buffor)
@@ -12,6 +13,17 @@ def main():
 	wypisz(tekst)
 	wypiszDwieLiczby(liczba)
 	inlineAsmExample()
+	inputInt()
+
+def inputInt():
+	int liczba
+	int wsk
+	wsk=^liczba
+	str formater
+	formater="%d"
+	^scanf(formater,wsk)
+	formater="%d\n"
+	^printf(formater,liczba)
 
 def wypisz(str parametr):
 	^printf(parametr)

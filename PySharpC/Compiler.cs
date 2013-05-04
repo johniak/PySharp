@@ -226,23 +226,16 @@ namespace PySharpC
         void variableAssigment(string line, Dictionary<string, Variable> locals, int argsCount)
         {
             Variable var = locals[Regex.Match(line, variableNameRegex).Groups["name"].Value];
-            if (Regex.IsMatch(line.Trim(), @"(\^)?" + variableNameRegex + @"[ ]*\(.*\)$"))
-            {
-                functionCalling(line.Split('=')[1].Trim(), locals, argsCount);
-                assemblyText.Add("mov %eax," + buildStackVariable(locals, var.Name, argsCount)+" #" + var.Name);
-                return;
-            }
-            if (var.Type == VarType.integer)
-            {
-                integerOperationExtractor(line.Split('=')[1].Trim(), locals, argsCount);
-                assemblyText.Add("mov %ebx," + buildStackVariable(locals, var.Name, argsCount) + " #" + var.Name);
+            variableExtractor(line.Split('=')[1].Trim(), locals);
+            assemblyText.Add("mov %ebx," + buildStackVariable(locals, var.Name, argsCount) + " #" + var.Name);
+        }
+        void addressGetter(string operations, Dictionary<string, Variable> locals)
+        {
+            Match match = Regex.Match(operations, variableNameRegex);
 
-            }
-            if (var.Type == VarType.str)
-            {
-                stringAssigment(line.Split('=')[1].Trim(), locals, argsCount);
-                assemblyText.Add("mov %ebx," + buildStackVariable(locals, var.Name, argsCount) + " #" + var.Name);
-            }
+            Variable variable = locals[match.Groups["name"].Value];
+
+            assemblyText.Add("lea "+buildStackVariable(locals,variable.Name,0)+",%ebx");
         }
         void integerOperationExtractor(string operations, Dictionary<string, Variable> locals, int argsCount)
         {
@@ -290,12 +283,46 @@ namespace PySharpC
                 var arg = arguments[i];
                 if (arg == "")
                     continue;
-                assemblyText.Add("mov " + buildStackVariable(locals, arg, argsCount) + ",%ebx" + " #" + arg);
+
+                variableExtractor(arg,locals);
+
                 assemblyText.Add("mov %ebx,"+i*4+"(%edx)");
             }
             assemblyText.Add("sub $" + arguments.Length *4+ ",%esp");
             assemblyText.Add("call " + functionName + " #" + line.Trim());
             assemblyText.Add("add $" + arguments.Length * 4 + ",%esp");
+        }
+        void variableExtractor(string arg, Dictionary<string, Variable> locals)
+        {
+            bool address = Regex.IsMatch(arg.Trim(), @"[ ]*\^" + variableNameRegex + "$");
+            if (address)
+            {
+                addressGetter(arg.Trim(), locals);
+                return;
+            }
+            if (Regex.IsMatch(arg.Trim(), "^" + variableNameRegex + "$"))
+            {
+                assemblyText.Add("mov " + buildStackVariable(locals, arg, 0) + ",%ebx" + " #" + arg);
+                return;
+            }
+            if (Regex.IsMatch(arg.Trim(), "^\".*\"$"))
+            {
+                stringAssigment(arg.Trim(), locals, 0);
+                return;
+            }
+
+            if (Regex.IsMatch(arg.Trim(), @"(\^)?" + variableNameRegex + @"[ ]*\(.*\)$"))
+            {
+                functionCalling(arg.Trim(), locals, 0);
+                assemblyText.Add("mov %eax,%ebx");
+                return;
+            }
+            if (Regex.IsMatch(arg.Trim(), @"^[\+\-0-9]+$"))
+            {
+                integerOperationExtractor(arg.Trim(), locals, 0);
+                return;
+            }
+            throw new Exception();
         }
         string buildStackVariable(Dictionary<string, Variable> locals, string name, int argsCount)
         {
