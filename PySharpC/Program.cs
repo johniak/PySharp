@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,6 +15,7 @@ namespace PySharpC
             compiler.Open();
             compiler.Compile();
             compiler.SaveASM();
+            Process.Start("gcc", @"-o main.exe -m32  .\main.pys.s");
         }
     }
 }

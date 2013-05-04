@@ -1,78 +1,102 @@
 .data
-const_0: .asciz"%s"
-const_1: .asciz"tekst %d\n"
-const_2: .asciz"Hello World!\n"
-const_3: .asciz"%d"
-const_4: .asciz"%d\n"
-const_5: .asciz"%d %d\n"
-const_6: .asciz"%d\n"
+const_0: .asciz"%d"
+const_1: .asciz"przykladowy tekst %d\n"
+const_2: .asciz"przykladowy tekst %d\n"
+const_3: .asciz"Calkiem duza ta liczba\n"
+const_4: .asciz"%d"
+const_5: .asciz"%d\n"
+const_6: .asciz"%d %d\n"
+const_7: .asciz"%d\n"
 .text
 .global _main
 _main:
 push %ebp
 push %ebx
 mov %esp,%ebp
-sub $4,%esp #tekst
-sub $4,%esp #liczba
-mov $1024,%ebx
-mov %ebx,0(%esp) #liczba
-sub $4,%esp #buffor
-sub $4,%esp #formater
-mov $const_0,%ebx
-mov %ebx,0(%esp) #formater
+sub $4,%esp #cyfra
 mov %esp,%edx
 sub $8,%edx
-mov $14,%ebx
+lea 0(%esp),%ebx
+mov %ebx,4(%edx)
+mov $const_0,%ebx
+mov %ebx,0(%edx)
+sub $8,%esp
+call _scanf #^scanf("%d",^cyfra)
+add $8,%esp
+mov %esp,%edx
+sub $8,%edx
+mov 0(%esp),%ebx #cyfra
 mov %ebx,4(%edx)
 mov $const_1,%ebx
 mov %ebx,0(%edx)
 sub $8,%esp
-call _printf #^printf("tekst %d\n",14)
+call _printf #^printf("przykladowy tekst %d\n",cyfra)
 add $8,%esp
-mov %esp,%edx
-sub $4,%edx
-mov 8(%esp),%ebx #liczba
-mov %ebx,0(%edx)
-sub $4,%esp
-call _malloc #^malloc(liczba)
-add $4,%esp
-mov %eax,%ebx
-mov %ebx,4(%esp) #buffor
 mov %esp,%edx
 sub $8,%edx
-mov 4(%esp),%ebx #buffor
+call zwroc #zwroc()
+mov %eax,%ebx
 mov %ebx,4(%edx)
-mov 0(%esp),%ebx #formater
+mov $const_2,%ebx
 mov %ebx,0(%edx)
 sub $8,%esp
-call _scanf #^scanf(formater,buffor)
+call _printf #^printf("przykladowy tekst %d\n",zwroc())
 add $8,%esp
+mov 0(%esp),%ebx #cyfra
+sub $4,%esp #__TMP
+mov %ebx,0(%esp)
+mov $10,%ebx
+mov 0(%esp),%eax
+add $4,%esp #__TMP
+cmp %ebx,%eax
+jle if2
+mov 0(%esp),%ebx #cyfra
+sub $4,%esp #__TMP
+mov %ebx,0(%esp)
+mov $12,%ebx
+mov 0(%esp),%eax
+add $4,%esp #__TMP
+cmp %ebx,%eax
+jl if1
+if2:
+mov 0(%esp),%ebx #cyfra
+sub $4,%esp #__TMP
+mov %ebx,0(%esp)
+mov $1,%ebx
+mov 0(%esp),%eax
+add $4,%esp #__TMP
+cmp %ebx,%eax
+jne if0
+if1:
 mov %esp,%edx
 sub $4,%edx
-mov 4(%esp),%ebx #buffor
+mov $const_3,%ebx
 mov %ebx,0(%edx)
 sub $4,%esp
-call wypisz #wypisz(buffor)
+call _printf #^printf("Calkiem duza ta liczba\n")
 add $4,%esp
-mov $const_2,%ebx
-mov %ebx,12(%esp) #tekst
-mov %esp,%edx
-sub $4,%edx
-mov 12(%esp),%ebx #tekst
-mov %ebx,0(%edx)
-sub $4,%esp
-call wypisz #wypisz(tekst)
+add $0,%esp
+if0:
 add $4,%esp
-mov %esp,%edx
-sub $4,%edx
-mov 8(%esp),%ebx #liczba
-mov %ebx,0(%edx)
-sub $4,%esp
-call wypiszDwieLiczby #wypiszDwieLiczby(liczba)
-add $4,%esp
-call inlineAsmExample #inlineAsmExample()
-call inputInt #inputInt()
-add $16,%esp
+mov %ebp,%esp
+pop %ebx
+pop %ebp
+mov $0,%eax
+ret
+
+.global zwroc
+zwroc:
+push %ebp
+push %ebx
+mov %esp,%ebp
+mov $20,%ebx
+mov %ebx,%eax
+add $0,%esp
+mov %ebp,%esp
+pop %ebx
+pop %ebp
+ret
+add $0,%esp
 mov %ebp,%esp
 pop %ebx
 pop %ebp
@@ -89,7 +113,7 @@ sub $4,%esp #wsk
 lea 4(%esp),%ebx
 mov %ebx,0(%esp) #wsk
 sub $4,%esp #formater
-mov $const_3,%ebx
+mov $const_4,%ebx
 mov %ebx,0(%esp) #formater
 mov %esp,%edx
 sub $8,%edx
@@ -100,7 +124,7 @@ mov %ebx,0(%edx)
 sub $8,%esp
 call _scanf #^scanf(formater,wsk)
 add $8,%esp
-mov $const_4,%ebx
+mov $const_5,%ebx
 mov %ebx,0(%esp) #formater
 mov %esp,%edx
 sub $8,%edx
@@ -146,7 +170,7 @@ sub $4,%esp #pattern
 sub $4,%esp #liczba2
 mov $7,%ebx
 mov %ebx,0(%esp) #liczba2
-mov $const_5,%ebx
+mov $const_6,%ebx
 mov %ebx,4(%esp) #pattern
 mov %esp,%edx
 sub $12,%edx
@@ -173,7 +197,7 @@ push %ebx
 mov %esp,%ebp
 sub $4,%esp #liczba
 sub $4,%esp #pattern
-mov $const_6,%ebx
+mov $const_7,%ebx
 mov %ebx,0(%esp) #pattern
 mov $4,%ebx
 mov %ebx,4(%esp) #liczba

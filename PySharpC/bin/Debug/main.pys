@@ -1,19 +1,29 @@
 def main():
-	str tekst
-	int liczba
-	liczba=1024
-	str buffor
-	str formater
-	formater="%s"
-	^printf("tekst %d\n",14)
-	buffor=^malloc(liczba)
-	^scanf(formater,buffor)
-	wypisz(buffor)
-	tekst="Hello World!\n"
-	wypisz(tekst)
-	wypiszDwieLiczby(liczba)
-	inlineAsmExample()
-	inputInt()
+	int cyfra
+	^scanf("%d",^cyfra)
+	^printf("przykladowy tekst %d\n",cyfra)
+	^printf("przykladowy tekst %d\n",zwroc())
+	if(cyfra>10&&cyfra<12||cyfra==1):
+		^printf("Calkiem duza ta liczba\n")
+
+#	str tekst
+#	int liczba
+#	liczba=1024
+#	str buffor
+#	str formater
+#	formater="%s"
+#	^printf("tekst %d\n",14)
+#	buffor=^malloc(liczba)
+#	^scanf(formater,buffor)
+#	wypisz(buffor)
+#	tekst="Hello World!\n"
+#	wypisz(tekst)
+#	wypiszDwieLiczby(liczba)
+#	inlineAsmExample()
+#	inputInt()
+
+def zwroc():
+	ret 20
 
 def inputInt():
 	int liczba

@@ -21,6 +21,7 @@ namespace PySharpC
         List<string> basicTypes = new List<string>();
         int currentLine = 0;
         static int constCounter;
+        int ifCounter = 0;
         public Compiler(String filename)
         {
             this.filename = filename;
@@ -121,13 +122,18 @@ namespace PySharpC
             currentLine = block.Start;
             for (; currentLine <= block.End; )
             {
+                if (Regex.IsMatch(lines[currentLine].Trim(), @"^[\s]*#"))
+                {
+                    currentLine++;
+                    continue;
+                }
                 Variable var = variableDeclarator(lines[currentLine].Trim());
                 if (var != null)
                 {
                     var.StackPosition = locals.Count;
                     localLocals.Add(var);
                     locals.Add(var.Name, var);
-                    assemblyText.Add("sub $4,%esp #"+var.Name);
+                    assemblyText.Add("sub $4,%esp #" + var.Name);
                     currentLine++;
                     continue;
                 }
@@ -149,10 +155,26 @@ namespace PySharpC
                     currentLine++;
                     continue;
                 }
+                if (isIfStatment(lines[currentLine]))
+                {
+                    Block newBlock = findBlock(level + 1, currentLine + 1);
+                    ifStatmentCompiler(newBlock, locals, level + 1);
+                }
+                if (Regex.IsMatch(lines[currentLine].Trim(), @"^ret[ ]+"))
+                {
+                    variableExtractor(lines[currentLine].Trim().Substring(3), locals);
+                    assemblyText.Add("mov %ebx,%eax");
+                    assemblyText.Add("add $" + localLocals.Count * 4 + ",%esp");
+                    assemblyText.Add("mov %ebp,%esp");
+                    assemblyText.Add("pop %ebx");
+                    assemblyText.Add("pop %ebp");
+                    assemblyText.Add("ret");
+                    currentLine++;
+                }
                 currentLine++;
 
             }
-            assemblyText.Add("add $" + localLocals.Count *4+ ",%esp");
+            assemblyText.Add("add $" + localLocals.Count * 4 + ",%esp");
 
             foreach (var local in localLocals)
             {
@@ -212,7 +234,7 @@ namespace PySharpC
         }
         bool isVariableOperiation(string line)
         {
-            Match matchDef = Regex.Match(line, variableNameRegex + @"(=)|(\+=)|(\+\+)");
+            Match matchDef = Regex.Match(line.Trim(), "^" + variableNameRegex + @"(=)|(\+=)|(\+\+)");
             return matchDef.Success;
         }
         void variableOperation(string line, Dictionary<string, Variable> locals, int argsCount)
@@ -235,7 +257,7 @@ namespace PySharpC
 
             Variable variable = locals[match.Groups["name"].Value];
 
-            assemblyText.Add("lea "+buildStackVariable(locals,variable.Name,0)+",%ebx");
+            assemblyText.Add("lea " + buildStackVariable(locals, variable.Name, 0) + ",%ebx");
         }
         void integerOperationExtractor(string operations, Dictionary<string, Variable> locals, int argsCount)
         {
@@ -272,23 +294,23 @@ namespace PySharpC
             var matchArgs = match.Groups["args"].Value;
             if (matchArgs == "")
             {
-                assemblyText.Add("call " + functionName+" #"+line.Trim());
+                assemblyText.Add("call " + functionName + " #" + line.Trim());
                 return;
             }
             string[] arguments = matchArgs.Split(',');
             assemblyText.Add("mov %esp,%edx");
-            assemblyText.Add("sub $"+arguments.Length *4+",%edx");
+            assemblyText.Add("sub $" + arguments.Length * 4 + ",%edx");
             for (int i = arguments.Length - 1; i >= 0; i--)
             {
                 var arg = arguments[i];
                 if (arg == "")
                     continue;
 
-                variableExtractor(arg,locals);
+                variableExtractor(arg, locals);
 
-                assemblyText.Add("mov %ebx,"+i*4+"(%edx)");
+                assemblyText.Add("mov %ebx," + i * 4 + "(%edx)");
             }
-            assemblyText.Add("sub $" + arguments.Length *4+ ",%esp");
+            assemblyText.Add("sub $" + arguments.Length * 4 + ",%esp");
             assemblyText.Add("call " + functionName + " #" + line.Trim());
             assemblyText.Add("add $" + arguments.Length * 4 + ",%esp");
         }
@@ -329,6 +351,199 @@ namespace PySharpC
             Variable variable = locals[name];
             return ((locals.Keys.Count - 1 - variable.StackPosition) * 4) + "(%esp)";
         }
+        bool isIfStatment(string line)
+        {
+            return Regex.IsMatch(line.Trim(), @"^if[ ]*\([ ]*.*[ ]*\)[ ]*:");
+        }
+        void ifStatmentCompiler(Block block, Dictionary<string, Variable> locals, int level)
+        {
+            var command = Regex.Match(lines[block.Start - 1].Trim(), @"^if[ ]*\((?<command>[ ]*.*[ ]*)\)[ ]*:").Groups["command"].Value.Trim();
+            int ifEndNumber = ifCounter++;
+            int ifStartNumber = ifCounter++;
+            ifLogicCompiler(command, locals);
+            smallLogicCompiler(command, locals, false, ifStartNumber, ifEndNumber);
+            assemblyText.Add("if" + ifStartNumber + ":");
+            blockCompilator(block, locals, level, 0);
+            assemblyText.Add("if" + ifEndNumber + ":");
+        }
+        void smallLogicCompiler(string command, Dictionary<string, Variable> locals, bool endWithOr, int ifStartNumber, int ifEndNumber)
+        {
+            var logicOrExpresions =orSplitter(command);
+            
+            
+            for (int i = 0; i < logicOrExpresions.Length; i++)
+            {
+                var ors = logicOrExpresions[i];
+                var logicAndExpresions = andSplitter(ors);
+                var end = ifEndNumber;
+                if (i < logicOrExpresions.Length - 1)
+                {
+                    end = ifCounter++;
+                }
+                for (int j = 0; j < logicAndExpresions.Length - 1; j++)
+                {
+                    var ands = logicAndExpresions[j].Trim();
+                    //Match match = Regex.Match(ands, @"\((?<expr>.*)\)");
+                    //if (match.Success)
+                    //{
+                    //    smallLogicCompiler(match.Groups["expr"].Value,locals,false,ifStartNumber,ife)
+                    //}
+                    //else
+                    ifAndComparrer(ands, locals, end);
+                }
+                if (i < logicOrExpresions.Length - 1 || endWithOr)
+                {
+                    var ands = logicAndExpresions[logicAndExpresions.Length - 1];
+                    ifOrComparrer(ands, locals, ifStartNumber);
+                }
+                else
+                {
+                    var ands = logicAndExpresions[logicAndExpresions.Length - 1];
+                    ifAndComparrer(ands, locals, ifEndNumber);
+                }
+
+                if (i < logicOrExpresions.Length - 1)
+                {
+                    assemblyText.Add("if" + end + ":");
+                }
+            }
+        }
+        string[] orSplitter(string command)
+        {
+            List<string> ors= new List<string>();
+            int lastOr=0;
+            int level = 0;
+            for (int i = 0; i < command.Length; i++)
+            {
+                if (command[i] == '(')
+                    level++;
+                if (command[i] == ')')
+                    level--;
+                if (command[i] == '|' && i < command.Length - 1 && command[i + 1] == '|'&&level==0)
+                {
+                    ors.Add(command.Substring(lastOr,i-lastOr));
+                    lastOr = i + 2;
+                }
+            }
+            ors.Add(command.Substring(lastOr, command.Length - lastOr));
+            return ors.ToArray();
+        }
+        string[] andSplitter(string command)
+        {
+            List<string> ands = new List<string>();
+            int lastAnd = 0;
+            int level = 0;
+            for (int i = 0; i < command.Length; i++)
+            {
+                if (command[i] == '(')
+                    level++;
+                if (command[i] == ')')
+                    level--;
+                if (command[i] == '&' && i < command.Length - 1 && command[i + 1] == '&' && level == 0)
+                {
+                    ands.Add(command.Substring(lastAnd, i - lastAnd));
+                    lastAnd = i + 2;
+                }
+            }
+            ands.Add(command.Substring(lastAnd, command.Length - lastAnd));
+            return ands.ToArray();
+        }
+        void ifAndComparrer(string command, Dictionary<string, Variable> locals, int ifEndNumber)
+        {
+            var vars = Regex.Split(command, "==|<=|>=|!=|>|<");
+            var type = Regex.Match(command, "(?<type>==|<=|>=|!=|>|<)").Groups["type"].Value;
+            variableExtractor(vars[0], locals);
+            Variable variable = new Variable();
+            variable.StackPosition = locals.Count;
+            locals.Add("__TMP", variable);
+            assemblyText.Add("sub $4,%esp #__TMP");
+            assemblyText.Add("mov %ebx," + buildStackVariable(locals, "__TMP", 0));
+            variableExtractor(vars[1], locals);
+            assemblyText.Add("mov " + buildStackVariable(locals, "__TMP", 0) + ",%eax");
+            assemblyText.Add("add $4,%esp #__TMP");
+            locals.Remove("__TMP");
+            assemblyText.Add("cmp %ebx,%eax");
+            if (type == "==")
+            {
+                assemblyText.Add("jne if" + ifEndNumber);
+            }
+            else if (type == "<=")
+            {
+                assemblyText.Add("jg if" + ifEndNumber);
+            }
+            else if (type == ">=")
+            {
+                assemblyText.Add("jl if" + ifEndNumber);
+            }
+            else if (type == "!=")
+            {
+                assemblyText.Add("je if" + ifEndNumber);
+            }
+            else if (type == ">")
+            {
+                assemblyText.Add("jle if" + ifEndNumber);
+            }
+            else if (type == "<")
+            {
+                assemblyText.Add("jge if" + ifEndNumber);
+            }
+        }
+        void ifOrComparrer(string command, Dictionary<string, Variable> locals, int ifStartNumber)
+        {
+            var vars = Regex.Split(command, "==|<=|>=|!=|>|<");
+            var type = Regex.Match(command, "(?<type>==|<=|>=|!=|>|<)").Groups["type"].Value;
+            variableExtractor(vars[0], locals);
+            Variable variable = new Variable();
+            variable.StackPosition = locals.Count;
+            locals.Add("__TMP", variable);
+            assemblyText.Add("sub $4,%esp #__TMP");
+            assemblyText.Add("mov %ebx," + buildStackVariable(locals, "__TMP", 0));
+            variableExtractor(vars[1], locals);
+            assemblyText.Add("mov " + buildStackVariable(locals, "__TMP", 0) + ",%eax");
+            assemblyText.Add("add $4,%esp #__TMP");
+            locals.Remove("__TMP");
+            assemblyText.Add("cmp %ebx,%eax");
+            if (type == "==")
+            {
+                assemblyText.Add("je if" + ifStartNumber);
+            }
+            else if (type == "<=")
+            {
+                assemblyText.Add("jle if" + ifStartNumber);
+            }
+            else if (type == ">=")
+            {
+                assemblyText.Add("gle if" + ifStartNumber);
+            }
+            else if (type == "!=")
+            {
+                assemblyText.Add("jne if" + ifStartNumber);
+            }
+            else if (type == ">")
+            {
+                assemblyText.Add("jg if" + ifStartNumber);
+            }
+            else if (type == "<")
+            {
+                assemblyText.Add("jl if" + ifStartNumber);
+            }
+        }
+
+        void ifLogicCompiler(string command, Dictionary<string, Variable> locals)
+        {
+
+            command = command.Substring(2).Trim();
+            List<String> brackets = new List<String>();
+            Match match = Regex.Match(command, @"\(.*\)");
+
+
+            while (match.Success)
+            {
+                brackets.Add(match.Groups[0].Value.Substring(1, match.Groups[0].Value.Length - 2));
+                match = Regex.Match(brackets[brackets.Count - 1], @"\(.*\)");
+            }
+        }
+
         public void SaveASM()
         {
             var stream = File.Open(filename + ".s", FileMode.Create);
