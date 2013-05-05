@@ -1,14 +1,12 @@
 
-void main(){
-	int x,y;
+int main(){
+	int x,y,z,wynik;
 	char* pattern;
 	x=20;
 	y=5;
-	pattern="%d %d %d\n";
-	printf(pattern,x,y);
-	if(x<y||x>y)
-	{
-		printf(pattern,x,y);
-	}
+	z=7;
+
+	wynik=x+y+z*1395;
+
 	return 2;
 }

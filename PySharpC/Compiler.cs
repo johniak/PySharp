@@ -22,6 +22,7 @@ namespace PySharpC
         int currentLine = 0;
         static int constCounter;
         int ifCounter = 0;
+        int stackOffset = 0;
         public Compiler(String filename)
         {
             this.filename = filename;
@@ -266,7 +267,101 @@ namespace PySharpC
                 Match match = Regex.Match(operations, "^(?<value>-?[0-9]+)$");
                 int value = int.Parse(match.Groups["value"].Value);
                 assemblyText.Add("mov $" + value + ",%ebx");
+                return;
             }
+            operations = toRPN(operations);
+            string VariableName = "";
+            bool wasOperator = true;
+            int level = 0;
+            for (int i = 0; i < operations.Length; i++)
+            {
+                if (operations[i] == '(')
+                    level++;
+                if (operations[i] == ')')
+                {
+                    level--;
+                    if (level == 0)
+                    {
+                        VariableName += operations[i];
+                        continue;
+                    }
+                }
+                if (level != 0)
+                {
+                    VariableName += operations[i];
+                    continue;
+                }
+
+                if (operations[i] == '+')
+                {
+                    wasOperator = true;
+                    assemblyText.Add("pop %ebx");
+                    assemblyText.Add("pop %eax");
+                    assemblyText.Add("clc");
+                    assemblyText.Add("add %ebx,%eax");
+                    assemblyText.Add("push %eax");
+                    stackOffset -= 1;
+                }
+                else if (operations[i] == '-' && !wasOperator)
+                {
+                    wasOperator = true;
+                    assemblyText.Add("pop %ebx");
+                    assemblyText.Add("pop %eax");
+                    assemblyText.Add("clc");
+                    assemblyText.Add("sub %ebx,%eax");
+                    assemblyText.Add("push %eax");
+                    stackOffset -= 1;
+                }
+                else if (operations[i] == '*')
+                {
+                    wasOperator = true;
+                    assemblyText.Add("pop %ebx");
+                    assemblyText.Add("pop %eax");
+                    assemblyText.Add("clc");
+                    assemblyText.Add("imul %ebx");
+                    assemblyText.Add("push %eax");
+                    stackOffset -= 1;
+                }
+                else if (operations[i] == '/')
+                {
+                    wasOperator = true;
+                    assemblyText.Add("pop %ebx");
+                    assemblyText.Add("pop %eax");
+                    assemblyText.Add("clc");
+                    assemblyText.Add("xor %edx,%edx");
+                    assemblyText.Add("div %ebx");
+                    assemblyText.Add("push %eax");
+                    stackOffset -= 1;
+                }
+                else if (operations[i] == '%')
+                {
+                    wasOperator = true;
+                    assemblyText.Add("pop %ebx");
+                    assemblyText.Add("pop %eax");
+                    assemblyText.Add("clc");
+                    assemblyText.Add("xor %edx,%edx");
+                    assemblyText.Add("div %ebx");
+                    assemblyText.Add("push %edx");
+                    stackOffset -= 1;
+                }
+                else if (operations[i] != ' ')
+                {
+                    wasOperator = false;
+                    VariableName += operations[i];
+                }
+                else if (operations[i] == ' ')
+                {
+                    if (VariableName.Trim() != "")
+                    {
+                        variableExtractor(VariableName, locals);
+                        assemblyText.Add("push %ebx #" + VariableName);
+                        stackOffset += 1;
+                    }
+                    VariableName = "";
+                }
+            }
+            assemblyText.Add("pop %ebx ");
+            stackOffset -= 1;
         }
         void stringAssigment(string operations, Dictionary<string, Variable> locals, int argsCount)
         {
@@ -298,21 +393,23 @@ namespace PySharpC
                 return;
             }
             string[] arguments = matchArgs.Split(',');
-            assemblyText.Add("mov %esp,%edx");
-            assemblyText.Add("sub $" + arguments.Length * 4 + ",%edx");
             for (int i = arguments.Length - 1; i >= 0; i--)
             {
                 var arg = arguments[i];
                 if (arg == "")
                     continue;
 
+                assemblyText.Add("push %edx");
+                stackOffset += 1;
                 variableExtractor(arg, locals);
-
-                assemblyText.Add("mov %ebx," + i * 4 + "(%edx)");
+                assemblyText.Add("pop %edx");
+                stackOffset -= 1;
+                assemblyText.Add("push %ebx");
+                stackOffset += 1;
             }
-            assemblyText.Add("sub $" + arguments.Length * 4 + ",%esp");
             assemblyText.Add("call " + functionName + " #" + line.Trim());
             assemblyText.Add("add $" + arguments.Length * 4 + ",%esp");
+            stackOffset -= arguments.Length;
         }
         void variableExtractor(string arg, Dictionary<string, Variable> locals)
         {
@@ -333,13 +430,13 @@ namespace PySharpC
                 return;
             }
 
-            if (Regex.IsMatch(arg.Trim(), @"(\^)?" + variableNameRegex + @"[ ]*\(.*\)$"))
+            if (Regex.IsMatch(arg.Trim(), @"^(\^)?" + variableNameRegex + @"[ ]*\(.*\)$"))
             {
                 functionCalling(arg.Trim(), locals, 0);
                 assemblyText.Add("mov %eax,%ebx");
                 return;
             }
-            if (Regex.IsMatch(arg.Trim(), @"^[\+\-0-9]+$"))
+            if (Regex.IsMatch(arg.Trim(), @"^[\+\-\*/%0-9a-zA-Z_\(\)]+$"))
             {
                 integerOperationExtractor(arg.Trim(), locals, 0);
                 return;
@@ -348,8 +445,8 @@ namespace PySharpC
         }
         string buildStackVariable(Dictionary<string, Variable> locals, string name, int argsCount)
         {
-            Variable variable = locals[name];
-            return ((locals.Keys.Count - 1 - variable.StackPosition) * 4) + "(%esp)";
+            Variable variable = locals[name.Trim()];
+            return ((locals.Keys.Count + stackOffset - 1 - variable.StackPosition) * 4) + "(%esp)";
         }
         bool isIfStatment(string line)
         {
@@ -360,7 +457,6 @@ namespace PySharpC
             var command = Regex.Match(lines[block.Start - 1].Trim(), @"^if[ ]*\((?<command>[ ]*.*[ ]*)\)[ ]*:").Groups["command"].Value.Trim();
             int ifEndNumber = ifCounter++;
             int ifStartNumber = ifCounter++;
-            ifLogicCompiler(command, locals);
             smallLogicCompiler(command, locals, false, ifStartNumber, ifEndNumber);
             assemblyText.Add("if" + ifStartNumber + ":");
             blockCompilator(block, locals, level, 0);
@@ -368,9 +464,9 @@ namespace PySharpC
         }
         void smallLogicCompiler(string command, Dictionary<string, Variable> locals, bool endWithOr, int ifStartNumber, int ifEndNumber)
         {
-            var logicOrExpresions =orSplitter(command);
-            
-            
+            var logicOrExpresions = orSplitter(command);
+
+
             for (int i = 0; i < logicOrExpresions.Length; i++)
             {
                 var ors = logicOrExpresions[i];
@@ -383,16 +479,16 @@ namespace PySharpC
                 for (int j = 0; j < logicAndExpresions.Length - 1; j++)
                 {
                     var ands = logicAndExpresions[j].Trim();
-                    var start= 0;
+                    var start = 0;
                     Match match = Regex.Match(ands, @"\((?<expr>.*)\)");
                     if (match.Success)
                     {
-                        start=ifCounter++;
+                        start = ifCounter++;
                         smallLogicCompiler(match.Groups["expr"].Value, locals, false, start, end);
                         assemblyText.Add("if" + start + ":");
                     }
                     else
-                    ifAndComparrer(ands, locals, end);
+                        ifAndComparrer(ands, locals, end);
                 }
                 if (i < logicOrExpresions.Length - 1 || endWithOr)
                 {
@@ -403,7 +499,7 @@ namespace PySharpC
                         smallLogicCompiler(match.Groups["expr"].Value, locals, false, ifStartNumber, end);
                     }
                     else
-                    ifOrComparrer(ands, locals, ifStartNumber);
+                        ifOrComparrer(ands, locals, ifStartNumber);
                 }
                 else
                 {
@@ -414,7 +510,7 @@ namespace PySharpC
                         smallLogicCompiler(match.Groups["expr"].Value, locals, false, ifStartNumber, end);
                     }
                     else
-                    ifAndComparrer(ands, locals, ifEndNumber);
+                        ifAndComparrer(ands, locals, ifEndNumber);
                 }
 
                 if (i < logicOrExpresions.Length - 1)
@@ -425,8 +521,8 @@ namespace PySharpC
         }
         string[] orSplitter(string command)
         {
-            List<string> ors= new List<string>();
-            int lastOr=0;
+            List<string> ors = new List<string>();
+            int lastOr = 0;
             int level = 0;
             for (int i = 0; i < command.Length; i++)
             {
@@ -434,9 +530,9 @@ namespace PySharpC
                     level++;
                 if (command[i] == ')')
                     level--;
-                if (command[i] == '|' && i < command.Length - 1 && command[i + 1] == '|'&&level==0)
+                if (command[i] == '|' && i < command.Length - 1 && command[i + 1] == '|' && level == 0)
                 {
-                    ors.Add(command.Substring(lastOr,i-lastOr));
+                    ors.Add(command.Substring(lastOr, i - lastOr));
                     lastOr = i + 2;
                 }
             }
@@ -543,7 +639,6 @@ namespace PySharpC
                 assemblyText.Add("jl if" + ifStartNumber);
             }
         }
-
         void ifLogicCompiler(string command, Dictionary<string, Variable> locals)
         {
 
@@ -558,7 +653,133 @@ namespace PySharpC
                 match = Regex.Match(brackets[brackets.Count - 1], @"\(.*\)");
             }
         }
-
+        string toRPN(string line)
+        {
+            List<char> stack = new List<char>();
+            List<string> variables = new List<string>();
+            string onp = "";
+            bool wasOperator = true;
+            int level = 0;
+            for (int i = 0; i < line.Length; i++)
+            {
+                if (level != 0 && line[i] == ')')
+                {
+                    onp += line[i];
+                    level--;
+                    if (level == 0)
+                        continue;
+                }
+                if (level != 0)
+                    continue;
+                if (line[i] == '+')
+                {
+                    onp += " ";
+                    var s = stack.Count - 1;
+                    //while (s > 0 && stack[s] != '*' && stack[s] != '/' && stack[s] != '%')
+                    while (s >= 0 && stack[s] != '(')
+                    {
+                        onp += (stack[s]);
+                        stack.RemoveAt(s);
+                        s--;
+                    }
+                    stack.Add(line[i]);
+                    wasOperator = true;
+                }
+                else if (line[i] == '-' && !wasOperator)
+                {
+                    onp += " ";
+                    var s = stack.Count - 1;
+                    while (s >= 0 && stack[s] != '(')
+                    {
+                        onp += (stack[s]);
+                        stack.RemoveAt(s);
+                        s--;
+                    }
+                    stack.Add(line[i]);
+                    wasOperator = true;
+                }
+                else if (line[i] == '*')
+                {
+                    var s = stack.Count - 1;
+                    onp += " ";
+                    while (s >= 0 && stack[s] != '(' && stack[s] != '+' && stack[s] != '-')
+                    {
+                        onp += (stack[s]);
+                        stack.RemoveAt(s);
+                        s--;
+                    }
+                    stack.Add(line[i]);
+                    wasOperator = true;
+                }
+                else if (line[i] == '/')
+                {
+                    var s = stack.Count - 1;
+                    onp += " ";
+                    while (s >= 0 && stack[s] != '(' && stack[s] != '+' && stack[s] != '-')
+                    {
+                        onp += (stack[s]);
+                        stack.RemoveAt(s);
+                        s--;
+                    }
+                    stack.Add(line[i]);
+                    wasOperator = true;
+                }
+                else if (line[i] == '%')
+                {
+                    var s = stack.Count - 1;
+                    onp += " ";
+                    while (s >= 0 && stack[s] != '(' && stack[s] != '+' && stack[s] != '-')
+                    {
+                        onp += (stack[s]);
+                        stack.RemoveAt(s);
+                        s--;
+                    }
+                    stack.Add(line[i]);
+                    wasOperator = true;
+                }
+                else if (line[i] == '(')
+                {
+                    if (wasOperator)
+                    {
+                        stack.Add(line[i]);
+                        wasOperator = true;
+                    }
+                    else
+                    {
+                        level++;
+                        onp += "(";
+                    }
+                }
+                else if (line[i] == ')')
+                {
+                    var s = stack.Count - 1;
+                    onp += " ";
+                    while (s >= 0 && stack[s] != '(')
+                    {
+                        onp += (stack[s]);
+                        stack.RemoveAt(s);
+                        s--;
+                    }
+                    stack.RemoveAt(s);
+                }
+                else
+                {
+                    wasOperator = false;
+                    onp += line[i];
+                }
+            }
+            var st = stack.Count - 1;
+            //while (s > 0 && stack[s] != '*' && stack[s] != '/' && stack[s] != '%')
+            while (st >= 0)
+            {
+                onp += " ";
+                if (stack[st] != '(')
+                    onp += (stack[st]);
+                stack.RemoveAt(st);
+                st--;
+            }
+            return onp;
+        }
         public void SaveASM()
         {
             var stream = File.Open(filename + ".s", FileMode.Create);

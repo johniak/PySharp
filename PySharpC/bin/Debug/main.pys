@@ -1,57 +1,12 @@
 def main():
-	int cyfra
-	^scanf("%d",^cyfra)
-	^printf("przykladowy tekst %d\n",cyfra)
-	^printf("przykladowy tekst %d\n",zwroc())
-	if(cyfra==1||(cyfra==2||cyfra>4&&cyfra<25)&&cyfra<20):
-		^printf("Calkiem duza ta liczba\n")
-
-#	str tekst
-#	int liczba
-#	liczba=1024
-#	str buffor
-#	str formater
-#	formater="%s"
-#	^printf("tekst %d\n",14)
-#	buffor=^malloc(liczba)
-#	^scanf(formater,buffor)
-#	wypisz(buffor)
-#	tekst="Hello World!\n"
-#	wypisz(tekst)
-#	wypiszDwieLiczby(liczba)
-#	inlineAsmExample()
-#	inputInt()
+	^printf("przykladowy tekst %d \n",zwroc()*5)
 
 def zwroc():
-	ret 20
+	int wynik
+	wynik=(3*3)%2
+	ret wynik*3
 
-def inputInt():
-	int liczba
-	int wsk
-	wsk=^liczba
-	str formater
-	formater="%d"
-	^scanf(formater,wsk)
-	formater="%d\n"
-	^printf(formater,liczba)
 
-def wypisz(str parametr):
-	^printf(parametr)
 
-def wypiszDwieLiczby(int liczba1):
-	str pattern
-	int liczba2
-	liczba2=7
-	pattern="%d %d\n"
-	^printf(pattern,liczba2,liczba1)
-
-def inlineAsmExample():
-	int liczba
-	str pattern
-	pattern="%d\n"
-	liczba=4
-	asm:
-		movl $5, ^liczba
-	^printf(pattern,liczba)
 
 

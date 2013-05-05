@@ -29,9 +29,6 @@
  # -mno-sse4 -mpush-args -msahf -mstack-arg-probe
 
 	.def	___main;	.scl	2;	.type	32;	.endef
-	.section .rdata,"dr"
-LC0:
-	.ascii "%d %d %d\12\0"
 	.text
 	.globl	_main
 	.def	_main;	.scl	2;	.type	32;	.endef
@@ -43,40 +40,38 @@ LFB0:
 	.cfi_offset 5, -8
 	movl	%esp, %ebp	 #,
 	.cfi_def_cfa_register 5
+	pushl	%ebx	 #
 	andl	$-16, %esp	 #,
-	subl	$32, %esp	 #,
+	subl	$16, %esp	 #,
+	.cfi_offset 3, -12
 	call	___main	 #
-	movl	$20, 28(%esp)	 #, x
-	movl	$5, 24(%esp)	 #, y
-	movl	$LC0, 20(%esp)	 #, pattern
-	movl	24(%esp), %eax	 # y, tmp59
-	movl	%eax, 8(%esp)	 # tmp59,
-	movl	28(%esp), %eax	 # x, tmp60
-	movl	%eax, 4(%esp)	 # tmp60,
-	movl	20(%esp), %eax	 # pattern, tmp61
-	movl	%eax, (%esp)	 # tmp61,
-	call	_printf	 #
-	movl	28(%esp), %eax	 # x, tmp62
-	cmpl	24(%esp), %eax	 # y, tmp62
-	jl	L2	 #,
-	movl	28(%esp), %eax	 # x, tmp63
-	cmpl	24(%esp), %eax	 # y, tmp63
-	jle	L5	 #,
-L2:
-	movl	24(%esp), %eax	 # y, tmp64
-	movl	%eax, 8(%esp)	 # tmp64,
-	movl	28(%esp), %eax	 # x, tmp65
-	movl	%eax, 4(%esp)	 # tmp65,
-	movl	20(%esp), %eax	 # pattern, tmp66
-	movl	%eax, (%esp)	 # tmp66,
-	call	_printf	 #
-L5:
-	nop
-L1:
+	movl	$20, 12(%esp)	 #, x
+	movl	$5, 8(%esp)	 #, y
+	movl	$7, 4(%esp)	 #, z
+	movl	8(%esp), %eax	 # y, tmp63
+	movl	12(%esp), %edx	 # x, tmp64
+	leal	(%edx,%eax), %ecx	 #, D.1367
+	movl	4(%esp), %edx	 # z, tmp65
+	movl	%edx, %eax	 # tmp65, tmp66
+	sall	$2, %eax	 #, tmp66
+	addl	%edx, %eax	 # tmp65, tmp66
+	sall	%eax	 # tmp66
+	addl	%edx, %eax	 # tmp65, tmp66
+	sall	$2, %eax	 #, tmp66
+	addl	%edx, %eax	 # tmp65, tmp66
+	movl	%eax, %edx	 # tmp66, tmp67
+	sall	$5, %edx	 #, tmp67
+	movl	%edx, %ebx	 # tmp67,
+	subl	%eax, %ebx	 # tmp66,
+	movl	%ebx, %eax	 #, D.1368
+	addl	%ecx, %eax	 # D.1367, tmp68
+	movl	%eax, (%esp)	 # tmp68, wynik
+	movl	$2, %eax	 #, D.1369
+	movl	-4(%ebp), %ebx	 #,
 	leave
 	.cfi_restore 5
+	.cfi_restore 3
 	.cfi_def_cfa 4, 4
 	ret
 	.cfi_endproc
 LFE0:
-	.def	_printf;	.scl	2;	.type	32;	.endef
