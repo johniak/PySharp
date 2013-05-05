@@ -383,22 +383,37 @@ namespace PySharpC
                 for (int j = 0; j < logicAndExpresions.Length - 1; j++)
                 {
                     var ands = logicAndExpresions[j].Trim();
-                    //Match match = Regex.Match(ands, @"\((?<expr>.*)\)");
-                    //if (match.Success)
-                    //{
-                    //    smallLogicCompiler(match.Groups["expr"].Value,locals,false,ifStartNumber,ife)
-                    //}
-                    //else
+                    var start= 0;
+                    Match match = Regex.Match(ands, @"\((?<expr>.*)\)");
+                    if (match.Success)
+                    {
+                        start=ifCounter++;
+                        smallLogicCompiler(match.Groups["expr"].Value, locals, false, start, end);
+                        assemblyText.Add("if" + start + ":");
+                    }
+                    else
                     ifAndComparrer(ands, locals, end);
                 }
                 if (i < logicOrExpresions.Length - 1 || endWithOr)
                 {
                     var ands = logicAndExpresions[logicAndExpresions.Length - 1];
+                    Match match = Regex.Match(ands, @"\((?<expr>.*)\)");
+                    if (match.Success)
+                    {
+                        smallLogicCompiler(match.Groups["expr"].Value, locals, false, ifStartNumber, end);
+                    }
+                    else
                     ifOrComparrer(ands, locals, ifStartNumber);
                 }
                 else
                 {
                     var ands = logicAndExpresions[logicAndExpresions.Length - 1];
+                    Match match = Regex.Match(ands, @"\((?<expr>.*)\)");
+                    if (match.Success)
+                    {
+                        smallLogicCompiler(match.Groups["expr"].Value, locals, false, ifStartNumber, end);
+                    }
+                    else
                     ifAndComparrer(ands, locals, ifEndNumber);
                 }
 

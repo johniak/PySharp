@@ -45,28 +45,46 @@ add $8,%esp
 mov 0(%esp),%ebx #cyfra
 sub $4,%esp #__TMP
 mov %ebx,0(%esp)
-mov $10,%ebx
-mov 0(%esp),%eax
-add $4,%esp #__TMP
-cmp %ebx,%eax
-jle if2
-mov 0(%esp),%ebx #cyfra
-sub $4,%esp #__TMP
-mov %ebx,0(%esp)
-mov $12,%ebx
-mov 0(%esp),%eax
-add $4,%esp #__TMP
-cmp %ebx,%eax
-jl if1
-if2:
-mov 0(%esp),%ebx #cyfra
-sub $4,%esp #__TMP
-mov %ebx,0(%esp)
 mov $1,%ebx
 mov 0(%esp),%eax
 add $4,%esp #__TMP
 cmp %ebx,%eax
-jne if0
+je if1
+if2:
+mov 0(%esp),%ebx #cyfra
+sub $4,%esp #__TMP
+mov %ebx,0(%esp)
+mov $2,%ebx
+mov 0(%esp),%eax
+add $4,%esp #__TMP
+cmp %ebx,%eax
+je if3
+if4:
+mov 0(%esp),%ebx #cyfra
+sub $4,%esp #__TMP
+mov %ebx,0(%esp)
+mov $4,%ebx
+mov 0(%esp),%eax
+add $4,%esp #__TMP
+cmp %ebx,%eax
+jle if0
+mov 0(%esp),%ebx #cyfra
+sub $4,%esp #__TMP
+mov %ebx,0(%esp)
+mov $25,%ebx
+mov 0(%esp),%eax
+add $4,%esp #__TMP
+cmp %ebx,%eax
+jge if0
+if3:
+mov 0(%esp),%ebx #cyfra
+sub $4,%esp #__TMP
+mov %ebx,0(%esp)
+mov $20,%ebx
+mov 0(%esp),%eax
+add $4,%esp #__TMP
+cmp %ebx,%eax
+jge if0
 if1:
 mov %esp,%edx
 sub $4,%edx

@@ -3,7 +3,7 @@ def main():
 	^scanf("%d",^cyfra)
 	^printf("przykladowy tekst %d\n",cyfra)
 	^printf("przykladowy tekst %d\n",zwroc())
-	if(cyfra>10&&cyfra<12||cyfra==1):
+	if(cyfra==1||(cyfra==2||cyfra>4&&cyfra<25)&&cyfra<20):
 		^printf("Calkiem duza ta liczba\n")
 
 #	str tekst
